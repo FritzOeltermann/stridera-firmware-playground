@@ -2,8 +2,20 @@
 #include "config.h"
 
 void ImuService::begin() {
-  // M5.begin() should already be called in setup/System::begin()
-  accel_.begin();                    // your existing driver
+  // Try to detect a CSV file; if found -> Replay; else -> Live
+  // We optimistically try to start replay here; if it fails we fall back to live.
+  if (!replayReady_) {
+    // Lazy init: try the default path
+    player_.setPath("/snapchat.csv");
+    replayReady_ = player_.begin("/snapchat.csv");
+    if (replayReady_) {
+      mode_ = Mode::Replay;
+    }
+  }
+
+  if (mode_ == Mode::Live) {
+    accel_.begin();    
+  }
   reset();
 }
 
@@ -17,13 +29,21 @@ void ImuService::reset() {
 }
 
 void ImuService::update() {
-  int16_t ax, ay, az;
-  accel_.read_mg(ax, ay, az);
-  current_.ts_ms   = millis();
-  current_.ax_mg   = ax;
-  current_.ay_mg   = ay;
-  current_.az_mg   = az;
-  current_.rate_hz = accel_.sample_rate_hz();
+  if (mode_ == Mode::Replay && replayReady_) {
+    // Advance one CSV row per call; stream at firmware loop's pace
+    StrideraAccelPacket pkt;
+    if (player_.readNext(pkt, replayRateHz_)) {
+      current_ = pkt;
+    }
+  } else {
+    int16_t ax, ay, az;
+    accel_.read_mg(ax, ay, az);
+    current_.ts_ms   = millis();
+    current_.ax_mg   = ax;
+    current_.ay_mg   = ay;
+    current_.az_mg   = az;
+    current_.rate_hz = accel_.sample_rate_hz();
+  }
 
   // --- Bottom-of-screen HUD once per second (small, unobtrusive) ---
   if (millis() - lastUi_ > UI_REFRESH_MS) {
@@ -43,7 +63,12 @@ void ImuService::update() {
 
     // Centered one-line IMU HUD
     char buf[64];
-    snprintf(buf, sizeof(buf), "IMU mg: %d %d %d", ax, ay, az);
+    if (mode_ == Mode::Replay) {
+      snprintf(buf, sizeof(buf), "REPLAY mg: %d %d %d @%uHz",
+               current_.ax_mg, current_.ay_mg, current_.az_mg, sampleRateHz());
+    } else {
+      snprintf(buf, sizeof(buf), "IMU mg: %d %d %d", current_.ax_mg, current_.ay_mg, current_.az_mg);
+    }
     M5.Display.drawString(buf, M5.Display.width()/2, y);
   }
 }

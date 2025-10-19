@@ -3,15 +3,17 @@
 class _BleServerCallbacks : public NimBLEServerCallbacks {
 public:
   _BleServerCallbacks(BleService* p): owner(p) {}
-  void onConnect(NimBLEServer*, NimBLEConnInfo&) override {
+  void onConnect(NimBLEServer* s, NimBLEConnInfo& c) override {
     owner->connected_ = true;
-    Serial.println("[BLE] connected");
+    Serial.printf("[BLE] onConnect: %s\n", c.getAddress().toString().c_str());
   }
-  void onDisconnect(NimBLEServer*, NimBLEConnInfo&, int) override {
+
+  void onDisconnect(NimBLEServer* s, NimBLEConnInfo& c, int reason) override {
     owner->connected_ = false;
     owner->subscribed_ = false;
     owner->ev_stop_ = true;                      // if streaming, System will transition to IDLE
-    Serial.println("[BLE] disconnected; advertising");
+    Serial.printf("[BLE] onDisconnect: reason=0x%02X (%d) peer=%s\n",
+                  reason, reason, c.getAddress().toString().c_str());
     owner->startAdvertising();
   }
 private:
@@ -40,7 +42,8 @@ void BleService::begin() {
   NimBLEDevice::init(STRIDERA_DEVICE_NAME);
   NimBLEDevice::setMTU(247);
   NimBLEDevice::setPower(ESP_PWR_LVL_P9);
-  NimBLEDevice::setSecurityAuth(false, false, true);
+  NimBLEDevice::setSecurityAuth(false, false, false);
+  NimBLEDevice::setSecurityIOCap(BLE_HS_IO_NO_INPUT_OUTPUT);
 
   server_ = NimBLEDevice::createServer();
   server_->setCallbacks(new _BleServerCallbacks(this));

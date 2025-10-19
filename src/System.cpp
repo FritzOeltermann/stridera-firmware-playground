@@ -92,7 +92,6 @@ void System::begin() {
   imu_.begin();
 
   resetAllRuntimeState();
-
   boot_ms_ = millis();
   state_   = SystemState::BOOTING;                         // show BOOTING first
   refreshStateBanner();                                    // draw initial banner
@@ -144,7 +143,7 @@ void System::loop() {
   if (reqStart_) {
     reqStart_ = false;
     if (state_ == SystemState::IDLE && ble_.connected()) {
-      resetAllRuntimeState();   // new session (clears latched edges; BLE link persists)
+      imu_.reset();  // Do NOT clear all runtime state, since ble connection needs to stay active
       state_ = SystemState::STREAMING;
       Serial.println("[FSM] -> STREAMING");
     }
@@ -173,6 +172,8 @@ void System::loop() {
       break;
 
     case SystemState::STREAMING:
+      Serial.print(reqStart_);
+      Serial.print(reqStop_);
       refreshStateBanner();         // header + streaming banner stays visible
       imu_.update();
       ble_.sendImu(imu_.current());
