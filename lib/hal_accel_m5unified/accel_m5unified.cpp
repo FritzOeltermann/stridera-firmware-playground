@@ -1,12 +1,12 @@
-#include "accel_m5_core2.h"
+#include "accel_m5unified.h"
 #include <math.h>  // lrintf
 
-bool AccelM5Core2::begin() {
+bool AccelM5Unified::begin() {
   M5.begin();
   return true;
 }
 
-void AccelM5Core2::read_mg(int16_t& ax_mg, int16_t& ay_mg, int16_t& az_mg) {
+void AccelM5Unified::read_mg(int16_t& ax_mg, int16_t& ay_mg, int16_t& az_mg) {
   float ax_g, ay_g, az_g;
   if (!M5.Imu.getAccel(&ax_g, &ay_g, &az_g)) {
     ax_mg = ay_mg = az_mg = 0;
@@ -18,7 +18,7 @@ void AccelM5Core2::read_mg(int16_t& ax_mg, int16_t& ay_mg, int16_t& az_mg) {
   return;
 }
 
-int16_t AccelM5Core2::mg_from_g(float g) {
+int16_t AccelM5Unified::mg_from_g(float g) {
   // Round to nearest mg, clamp into int16 range
   const int32_t mg = (int32_t)lrintf(g * 1000.0f);
   return clamp16(mg);

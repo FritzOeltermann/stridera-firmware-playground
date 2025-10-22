@@ -5,7 +5,9 @@
 #define STRIDERA_CHAR_UUID    "7b9d1f01-8d2a-4b3a-94c1-6b8a1a9b7c10"
 
 // ===== App identity =====
-#define STRIDERA_DEVICE_NAME "Stridera-M5Core2"
+#ifndef STRIDERA_DEVICE_NAME
+  #define STRIDERA_DEVICE_NAME "Stridera-Unknown"
+#endif
 
 // ===== Tasking =====
 #define IMU_TASK_STACK   4096

@@ -3,14 +3,14 @@
 #include "iaccelerometer.h"
 
 /**
- * AccelM5Core2 — IAccelerometer implementation for M5Stack Core2 built-in IMU.
+ * AccelM5Unified — IAccelerometer implementation for M5Stack Unified built-in IMU lib.
  * - Uses M5Unified; no chip-specific code needed (MPU6886/SH200Q abstracted).
  * - Outputs accelerations in milli-g (mg) rounded to int16.
  * - The "rate" is a target for your app loop timing (no HW ODR control here).
  */
-class AccelM5Core2 : public IAccelerometer {
+class AccelM5Unified : public IAccelerometer {
   public:
-    AccelM5Core2() = default;
+    AccelM5Unified() = default;
 
     // IAccelerometer
     bool begin() override;

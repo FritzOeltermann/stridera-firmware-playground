@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include <M5Unified.h>
-#include "accel_m5_core2.h"
+#include "accel_m5unified.h"
 #include "stridera_packet.h"
 #include "CsvReplay.h"
 
@@ -18,7 +18,7 @@ private:
   enum class Mode { Live, Replay };
   Mode mode_ = Mode::Live;
 
-  AccelM5Core2 accel_;
+  AccelM5Unified accel_;
   StrideraAccelPacket current_{};
   uint32_t lastUi_ = 0;
 

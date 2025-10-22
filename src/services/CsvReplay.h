@@ -1,74 +1,64 @@
+// CsvReplay.h
 #pragma once
 #include <Arduino.h>
-#include <SD.h>
 #include "stridera_packet.h"
+
+#if STRIDERA_HAS_SD
+  #include <SD.h>
+#else
+  #include <SPIFFS.h>
+#endif
 
 class CsvReplay {
 public:
   bool begin(const char* path) {
-    if (!SD.begin(4)) {   // Core2 SD-CS is typically GPIO 4
-      return false;
-    }
+  #if STRIDERA_HAS_SD
+    // Core2: built-in SD (CS is typically GPIO 4)
+    if (!SD.begin(4)) return false;  // Core2 default CS = 4
     file_ = SD.open(path, FILE_READ);
+  #else
+    // StickC Plus 2: no SD — use SPIFFS
+    if (!SPIFFS.begin(true)) return false;
+    if (!SPIFFS.exists(path)) return false;         // quick existence check
+    file_ = SPIFFS.open(path, "r");
+  #endif
     if (!file_) return false;
 
-    // Skip header line
-    String header = file_.readStringUntil('\n');
-    (void)header;
+    // Skip header
+    (void)file_.readStringUntil('\n');
     return true;
   }
 
   bool readNext(StrideraAccelPacket& out, uint8_t nominal_rate_hz = 100) {
-    if (!file_) return false;
-
     String line = file_.readStringUntil('\n');
-    if (line.length() == 0) {
-      // end-of-file -> loop from start (skip header)
-      file_.close();
-      return begin(path_.c_str());
-    }
+    if (line.length() == 0) return false;
 
-    // Very tolerant CSV parsing (tabs or commas)
-    float gx=0, gy=0, gz=0;
-    // We only need the last three numeric fields in the expected order.
-    // Split once, then scan from right to left for the 3 floats.
-    int lastComma = line.lastIndexOf(',');
-    if (lastComma < 0) lastComma = line.lastIndexOf('\t');
-    if (lastComma < 0) return false;
+    // CSV: ts_ms, ax_g, ay_g, az_g
+    char* endp = nullptr;
+    const char* s = line.c_str();
+    uint32_t ts = strtoul(s, &endp, 10);
+    if (!endp) return false;
 
-    String z_str = line.substring(lastComma + 1);       // z (g)
-    String rest  = line.substring(0, lastComma);
+    float ax = strtof(endp+1, &endp);
+    float ay = strtof(endp+1, &endp);
+    float az = strtof(endp+1, &endp);
 
-    lastComma = rest.lastIndexOf(',');
-    if (lastComma < 0) lastComma = rest.lastIndexOf('\t');
-    if (lastComma < 0) return false;
-
-    String y_str = rest.substring(lastComma + 1);       // y (g)
-    String rest2 = rest.substring(0, lastComma);
-
-    lastComma = rest2.lastIndexOf(',');
-    if (lastComma < 0) lastComma = rest2.lastIndexOf('\t');
-    if (lastComma < 0) return false;
-
-    String x_str = rest2.substring(lastComma + 1);      // x (g)
-
-    gx = x_str.toFloat();
-    gy = y_str.toFloat();
-    gz = z_str.toFloat();
-
-    // Fill packet (mg + monotonic millis)
-    out.ts_ms   = millis();
-    out.ax_mg   = (int16_t)roundf(gx * 1000.0f);
-    out.ay_mg   = (int16_t)roundf(gy * 1000.0f);
-    out.az_mg   = (int16_t)roundf(gz * 1000.0f);
+    out.ts_ms   = ts;
+    out.ax_mg   = (int16_t)lrintf(ax * 1000.0f);
+    out.ay_mg   = (int16_t)lrintf(ay * 1000.0f);
+    out.az_mg   = (int16_t)lrintf(az * 1000.0f);
     out.rate_hz = nominal_rate_hz;
-    out.reserved = 0;
+    out.reserved= 0;
     return true;
   }
 
   void setPath(const char* p) { path_ = p; }
 
 private:
+#if STRIDERA_HAS_SD
   File file_;
+#else
+  fs::File file_;
+#endif
   String path_ = "/snapchat.csv";
 };
